@@ -97,7 +97,7 @@ pr-build:
     expire_in: 1 day
 
 # Reproduces the trdl server release build; needs docker, hence the shell runner.
-trdl-build-check:
+.trdl-build-check:
   tags:
     - deckhouse
   needs: []
@@ -135,24 +135,14 @@ release:build:
 # Run by hand last, once trdl:release has passed (release:build artifacts live 1 week).
 release:github:
   stage: deploy
-  needs: ["release:build", "trdl:release"]
+  needs: ["release:build"]
   interruptible: false
   rules:
     - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
       when: manual
   variables:
     GIT_DEPTH: "0"
-    GH_REPO: deckhouse/deckhouse-cli
-    VAULT_AUTH_PATH: fox
-    VAULT_AUTH_ROLE: deckhouse
-  id_tokens:
-    VAULT_ID_TOKEN:
-      aud: gitlab-access-aud
-  secrets:
-    GH_TOKEN:
-      vault: 6db2f1ee-9b6f-4f4f-8381-2fb43060478a/github/boatswain/BOATSWAIN_GITHUB_TOKEN/token@projects
-      token: $VAULT_ID_TOKEN
-      file: false
+    GH_REPO: fuldaxxx/deckhouse-cli
   before_script:
     - mkdir -p .tools/bin && export PATH="$PWD/.tools/bin:$PATH"
     - curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" | tar -xz -C .tools/bin --strip-components=2 "gh_${GH_VERSION}_linux_amd64/bin/gh"
@@ -189,12 +179,12 @@ release:github:
   resource_group: trdl
   timeout: 7h # trdl.sh keeps retrying for up to 6h (needs curl and jq, both on the runner hosts)
 
-trdl:release:
+.trdl:release:
   extends: [.trdl, .on_release_tag]
   script:
     - bash .gitlab/scripts/trdl.sh release "$CI_COMMIT_TAG"
 
-trdl:publish:
+.trdl:publish:
   extends: .trdl
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_PIPELINE_SOURCE == "push"

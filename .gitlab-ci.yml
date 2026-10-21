@@ -1,20 +1,3 @@
-# deckhouse-cli CI. Ported from GitHub Actions.
-# GitHub is a push mirror of this project (Settings -> Repository -> Mirroring repositories):
-# same commits and tags. Releases are not mirrored: release:gitlab and release:github make them.
-#
-# CI/CD variables (Settings -> CI/CD -> Variables):
-#   SOURCE_REPO_SSH_KEY     trdl-build-check: SSH key for the private repo, as the trdl server has;
-#                           base64 in one line so it can be masked
-#   DECKHOUSE_PRIVATE_REPO  trdl-build-check: hostname of the private repo (masked)
-# Go jobs read the private repo with CI_JOB_TOKEN (see .go).
-#   TRDL_VAULT_ADDR         trdl server (protected, masked)
-#   TRDL_VAULT_ROLE_ID      trdl approle (protected, masked)
-#   TRDL_VAULT_SECRET_ID    trdl approle (protected, masked)
-# Protected variables reach tag pipelines only when the v* tags are protected.
-# The GitHub token comes from Vault (role deckhouse).
-#
-# Pipeline schedule (Build -> Pipeline schedules): trdl-build-check, "0 7 * * 1" on main.
-
 workflow:
   auto_cancel:
     on_new_commit: interruptible
@@ -198,7 +181,10 @@ release:github:
         NOTES+=$'\n\n'"**Full Changelog**: https://github.com/$GH_REPO/compare/$prev...$CI_COMMIT_TAG"
       fi
     - |
-      gh release create "$CI_COMMIT_TAG" --verify-tag --title "$CI_COMMIT_TAG" --notes "$NOTES" dist/*/*.tar.gz* \
+      # GitHub makes every new release Latest; a patch to an older line must not take it.
+      newest="$(git tag -l --sort=v:refname 'v[0-9]*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | tail -n1)"
+      latest=false; [ "$CI_COMMIT_TAG" = "$newest" ] && latest=true
+      gh release create "$CI_COMMIT_TAG" --verify-tag --latest="$latest" --title "$CI_COMMIT_TAG" --notes "$NOTES" dist/*/*.tar.gz* \
         || gh release upload "$CI_COMMIT_TAG" --clobber dist/*/*.tar.gz*
 
 # --- trdl ---------------------------------------------------------------------
